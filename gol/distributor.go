@@ -22,7 +22,7 @@ func readWorld(p Params, c distributorChannels) [][]byte {
 	for i := range World {
 		World[i] = make([]byte, p.ImageWidth)
 	}
-
+	//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
 	for j := 0; j < p.ImageHeight; j++ {
 		for i := 0; i < p.ImageWidth; i++ {
 			if <-c.ioInput == 255 {
