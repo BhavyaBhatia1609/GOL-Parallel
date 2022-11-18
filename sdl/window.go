@@ -43,13 +43,14 @@ func NewWindow(width, height int32) *Window {
 	}
 }
 
+
 func (w *Window) Destroy() {
 	err := w.texture.Destroy()
 	util.Check(err)
 	err = w.renderer.Destroy()
 	util.Check(err)
 	err = w.window.Destroy()
-	util.Check(err)
+	//util.Check(err)
 	sdl.Quit()
 }
 
