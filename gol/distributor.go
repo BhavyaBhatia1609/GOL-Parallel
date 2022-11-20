@@ -2,8 +2,10 @@ package gol
 
 import (
 	"fmt"
+	"net/rpc"
 	"os"
 	"time"
+	"uk.ac.bris.cs/gameoflife/stubs"
 	"uk.ac.bris.cs/gameoflife/util"
 )
 
@@ -51,16 +53,15 @@ func writeWorld(p Params, c distributorChannels, world [][]byte, turnNum int) {
 	}
 }
 
-func worker(p Params, world [][]byte, c distributorChannels, turn int, startY int, endY int, out chan<- [][]byte) {
-	world1 := calculateNextState(p, world, c, turn, startY, endY)
-	out <- world1
-}
-
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
 	World := readWorld(p, c) //Reads the world and puts it in a 2D slice
 
 	ticker := time.NewTicker(2 * time.Second)
+
+	server := "127.0.0.1:8030"
+	client, _ := rpc.Dial("tcp", server)
+	defer client.Close()
 
 	for turn := 0; turn < p.Turns; {
 		select {
@@ -87,37 +88,22 @@ func distributor(p Params, c distributorChannels) {
 				writeWorld(p, c, World, turn) //writes the world in the current turn that the user is on
 			}
 		default:
-			WorkerOut := make([]chan [][]byte, p.Threads) // A 2D matrix of channels to put in the slices of the world
-			for i := range WorkerOut {
-				WorkerOut[i] = make(chan [][]byte)
-			}
+			newWorld := makeCall(client, p, World)
 
-			sliceHeight := p.ImageHeight / p.Threads
-			remaining := p.ImageHeight % p.Threads
-
-			if p.Threads > 1 {
-				for thread := 0; thread < p.Threads; thread++ {
-					if (remaining > 0) && ((thread + 1) == p.Threads) {
-						go worker(p, World, c, turn, thread*sliceHeight, ((thread+1)*sliceHeight)+remaining, WorkerOut[thread])
-					} else {
-						go worker(p, World, c, turn, thread*sliceHeight, (thread+1)*sliceHeight, WorkerOut[thread])
+			for j := 0; j < p.ImageHeight; j++ {
+				for i := 0; i < p.ImageWidth; i++ {
+					if newWorld[j][i] != World[j][i] {
+						c.events <- CellFlipped{
+							CompletedTurns: turn,
+							Cell:           util.Cell{X: i, Y: j},
+						}
 					}
 				}
-
-				newWorld := make([][]byte, 0) // A new world slice to append what was taken from the worker out channel
-				for i := 0; i < p.Threads; i++ {
-					part := <-WorkerOut[i]
-					newWorld = append(newWorld, part...)
-				}
-
-				World = newWorld
-				c.events <- TurnComplete{turn}
-				turn++
-			} else {
-				World = calculateNextState(p, World, c, turn, 0, p.ImageHeight)
-				c.events <- TurnComplete{turn}
-				turn++
 			}
+
+			World = newWorld
+			c.events <- TurnComplete{turn}
+			turn++
 		}
 	}
 
@@ -133,62 +119,6 @@ func distributor(p Params, c distributorChannels) {
 
 	// Close the channel to stop the SDL goroutine gracefully. Removing may cause deadlock.
 	close(c.events)
-}
-
-func calculateNextState(p Params, world [][]byte, c distributorChannels, turn int, start int, end int) [][]byte {
-	newWorld := make([][]byte, end-start)
-	for i := range newWorld {
-		newWorld[i] = make([]byte, p.ImageWidth)
-	}
-	k := 0 // The position where the y would be in a particular slice from the worker since we slice them into start and end
-	for y := start; y < end; y++ {
-		for x := 0; x < p.ImageWidth; x++ {
-			count := 0
-			for j := y - 1; j <= y+1; j++ {
-				for i := x - 1; i <= x+1; i++ {
-					if j == y && i == x {
-						continue
-					}
-					w, z := i, j
-
-					if z >= p.ImageHeight {
-						z = 0
-					}
-					if w >= p.ImageWidth {
-						w = 0
-					}
-					if z < 0 {
-						z = p.ImageHeight - 1
-					}
-					if w < 0 {
-						w = p.ImageWidth - 1
-					}
-					if world[z][w] == 255 {
-						count++
-					}
-				}
-			}
-
-			if world[y][x] == 255 {
-				if count < 2 {
-					newWorld[k][x] = 0
-					c.events <- CellFlipped{turn, util.Cell{X: x, Y: y}}
-				} else if count == 2 || count == 3 {
-					newWorld[k][x] = 255
-				} else {
-					newWorld[k][x] = 0
-					c.events <- CellFlipped{turn, util.Cell{X: x, Y: y}}
-				}
-			} else {
-				if count == 3 {
-					newWorld[k][x] = 255
-					c.events <- CellFlipped{turn, util.Cell{X: x, Y: y}}
-				}
-			}
-		}
-		k++
-	}
-	return newWorld
 }
 
 func calculateAliveCells(p Params, world [][]byte) []util.Cell {
@@ -213,4 +143,11 @@ func counterCells(p Params, world [][]byte) int {
 		}
 	}
 	return count
+}
+
+func makeCall(client *rpc.Client, p Params, world [][]byte) [][]byte {
+	request := stubs.Request{World: world, Thread: p.Threads}
+	response := new(stubs.Response)
+	client.Call(stubs.ProcessGameOfLife, request, response)
+	return response.World
 }
