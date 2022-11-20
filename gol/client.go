@@ -1,12 +1,19 @@
 package gol
 
 import (
-	"fmt"
+	"flag"
+	"math/rand"
 	"net"
+	"net/rpc"
+	"time"
 )
 
 func main() {
-	msg := "Here is a message"
-	conn, _ := net.Dial("tcp", "127.0.0.1:8030")
-	fmt.Fprintln(conn, msg)
+	pAddr := flag.String("port", "8030", "Port to listen on")
+	flag.Parse()
+	rand.Seed(time.Now().UnixNano())
+	rpc.Register("hello")
+	listener, _ := net.Listen("tcp", ":"+*pAddr)
+	defer listener.Close()
+	rpc.Accept(listener)
 }

@@ -6,6 +6,8 @@ import (
 	"net"
 )
 
+type Game struct{}
+
 func main() {
 	ln, _ := net.Listen("tcp", ":8030")
 	conn, _ := ln.Accept()
