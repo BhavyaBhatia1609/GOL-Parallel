@@ -1,6 +1,7 @@
 package gol
 
 import (
+	"flag"
 	"fmt"
 	"net/rpc"
 	"os"
@@ -53,14 +54,22 @@ func writeWorld(p Params, c distributorChannels, world [][]byte, turnNum int) {
 	}
 }
 
+var server *string
+
+func init() {
+	//serverIP := "localhost:8030"
+	serverIP := "44.212.21.187:8030"
+	server = flag.String("server", serverIP, "IP:port string to connect to as server")
+}
+
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
 	World := readWorld(p, c) //Reads the world and puts it in a 2D slice
 
 	ticker := time.NewTicker(2 * time.Second)
 
-	server := "127.0.0.1:8030"
-	client, _ := rpc.Dial("tcp", server)
+	flag.Parse()
+	client, _ := rpc.Dial("tcp", *server)
 	defer client.Close()
 
 	for turn := 0; turn < p.Turns; {
