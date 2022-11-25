@@ -58,7 +58,7 @@ var server *string
 
 func init() {
 	//serverIP := "localhost:8030"
-	serverIP := "3.87.23.44:8030"
+	serverIP := "34.207.210.166:8030"
 	server = flag.String("server", serverIP, "IP:port string to connect to as server")
 }
 

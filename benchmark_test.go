@@ -11,7 +11,7 @@ const benchLength = 100
 
 func BenchmarkGol(b *testing.B) {
 	for threads := 1; threads <= 16; threads *= 2 {
-		os.Stdout = nil // Disable all program output apart from benchmark results
+		os.Stdout = nil
 		p := gol.Params{
 			Turns:       benchLength,
 			Threads:     threads,

@@ -78,7 +78,7 @@ func workerWorks(World [][]byte, threads int) [][]byte {
 	remaining := len(World) % threads
 
 	for thread := 0; thread < threads; thread++ {
-		if (remaining > 0) && ((thread + 1) == thread) {
+		if (remaining > 0) && ((thread + 1) == threads) {
 			go worker(World, thread*sliceHeight, ((thread+1)*sliceHeight)+remaining, WorkerOut[thread])
 		} else {
 			go worker(World, thread*sliceHeight, (thread+1)*sliceHeight, WorkerOut[thread])
