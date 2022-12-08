@@ -16,13 +16,13 @@ func calculateNextState(world [][]byte, start int, end int) [][]byte {
 	for y := start; y < end; y++ {
 		for x := 0; x < len(world); x++ {
 			count := 0
-			for j := y - 1; j <= y+1; j++ {
+			for j := y - 1; j <= y+1; j++ { // going through the cells adjecent to the current.
 				for i := x - 1; i <= x+1; i++ {
 					if j == y && i == x {
 						continue
 					}
 					w, z := i, j
-
+					//handle cell warping:
 					if z >= len(world) {
 						z = 0
 					}
@@ -40,7 +40,7 @@ func calculateNextState(world [][]byte, start int, end int) [][]byte {
 					}
 				}
 			}
-
+			//gol set of rules:
 			if world[y][x] == 255 {
 				if count < 2 {
 					newWorld[k][x] = 0
